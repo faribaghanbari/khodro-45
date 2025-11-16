@@ -6,6 +6,8 @@ from playwright.sync_api import Page
 from pages.forms_page import FormsPage
 from pages.bookstore_page import BookStorePage
 from pages.webtables_page import WebTablesPage
+from typing import Generator
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -44,4 +46,18 @@ def webtables_page(page: Page) -> WebTablesPage:
     # Navigate to the web tables page
     webtables_page.navigate()
     return webtables_page
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    Convert any skipped tests into failures so that nothing is silently skipped at runtime.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    if getattr(report, "skipped", False):
+        report.outcome = "failed"
+        # Ensure it's not treated as xfail by any plugin
+        if hasattr(report, "wasxfail"):
+            report.wasxfail = False
 
