@@ -128,7 +128,15 @@ class FormsPage(BasePage):
             self.page.wait_for_timeout(500)  # Wait for dropdown to open
             city_option = self.page.locator(f'div[id*="react-select"][id*="option"]:has-text("{data["city"]}")').first
             city_option.wait_for(state="visible", timeout=5000)
-            city_option.click(timeout=5000)
+            try:
+                city_option.click(timeout=5000)
+            except Exception:
+                # Firefox occasionally misses the click - try force click then keyboard confirm
+                try:
+                    city_option.click(timeout=3000, force=True)
+                except Exception:
+                    self.city_dropdown.click()
+                    self.page.keyboard.press("Enter")
         
         # Upload file if provided
         if data.get("filePath"):

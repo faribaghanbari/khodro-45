@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 import requests
 import time
 from typing import Dict, Tuple, Optional
+import time as _time
+from typing import Any
 
 
 def login_to_bookstore(page: Page) -> "BookStorePage":
@@ -57,6 +59,17 @@ def create_user_via_api(username: str, password: str) -> Dict:
     return resp.json()
 
 
+def login_user_via_api(username: str, password: str) -> Dict[str, Any]:
+    """
+    Login via DemoQA Account API. Returns response json which may include userId and username.
+    """
+    payload = {"userName": username, "password": password}
+    resp = requests.post("https://demoqa.com/Account/v1/Login", json=payload, timeout=30)
+    if resp.status_code != 200:
+        raise AssertionError(f"Login via API failed: {resp.status_code} {resp.text}")
+    return resp.json()
+
+
 def generate_token_via_api(username: str, password: str) -> str:
     """
     Generate an auth token for the created user (useful for debugging or future API calls).
@@ -69,4 +82,37 @@ def generate_token_via_api(username: str, password: str) -> str:
     if data.get("status") != "Success":
         raise AssertionError(f"Token generation not successful: {data}")
     return data["token"]
+
+
+def generate_token_and_expiry_via_api(username: str, password: str) -> Tuple[str, str]:
+    """
+    Generate an auth token and expiry for the created user.
+    Returns (token, expires) tuple as provided by the DemoQA API.
+    """
+    payload = {"userName": username, "password": password}
+    resp = requests.post("https://demoqa.com/Account/v1/GenerateToken", json=payload, timeout=30)
+    if resp.status_code != 200:
+        raise AssertionError(f"Token generation failed: {resp.status_code} {resp.text}")
+    data = resp.json()
+    if data.get("status") != "Success":
+        raise AssertionError(f"Token generation not successful: {data}")
+    token = data.get("token")
+    expires = data.get("expires")
+    if not token or not expires:
+        raise AssertionError(f"Token or expires missing in response: {data}")
+    return token, expires
+
+
+def generate_token_and_expiry_with_retry(username: str, password: str, attempts: int = 3, backoff_seconds: float = 1.0) -> Tuple[str, str]:
+    """
+    Same as generate_token_and_expiry_via_api but with simple retries to tolerate transient failures.
+    """
+    last_error: Optional[Exception] = None
+    for i in range(attempts):
+        try:
+            return generate_token_and_expiry_via_api(username, password)
+        except Exception as e:
+            last_error = e
+            _time.sleep(backoff_seconds)
+    raise last_error if last_error else AssertionError("Token generation failed after retries")
 
