@@ -46,11 +46,8 @@ class WebTablesPage(BasePage):
         """Navigate to Web Tables page"""
         self.goto("/webtables")
         self.wait_for_navigation()
-        # Wait for page to fully load
-        self.page.wait_for_load_state("networkidle", timeout=30000)
-        self.page.wait_for_timeout(2000)  # Additional wait for React components
-        # Wait for table to be ready
-        self.table.wait_for(state="visible", timeout=15000)
+        # Wait for table to be ready (avoid networkidle)
+        self.table.wait_for(state="visible", timeout=30000)
     
     def click_add_button(self) -> None:
         """Click Add button to open modal"""

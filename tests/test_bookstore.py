@@ -4,18 +4,28 @@ Book Store - Login Authentication Tests
 import pytest
 from pages.bookstore_page import BookStorePage
 from helpers.test_data import VALID_CREDENTIALS, INVALID_CREDENTIALS
-from helpers.auth import login_to_bookstore
+from helpers.auth import login_to_bookstore, generate_unique_credentials, create_user_via_api
+import os
 
 
-# Skip all login tests if credentials are not configured
-skip_if_no_credentials = (
-    VALID_CREDENTIALS["username"] == "your_username_here" or
-    VALID_CREDENTIALS["password"] == "your_password_here"
-)
+@pytest.fixture(scope="session", autouse=True)
+def provision_temp_bookstore_user() -> None:
+    """
+    Automatically provision a temporary Book Store user via API and
+    inject credentials into VALID_CREDENTIALS for all tests.
+    """
+    username, password = generate_unique_credentials(prefix="e2e")
+    create_user_via_api(username, password)
+    # Mutate the shared dict used by tests
+    VALID_CREDENTIALS["username"] = username
+    VALID_CREDENTIALS["password"] = password
+    # Also set env for any code paths reading env vars
+    os.environ["TEST_USERNAME"] = username
+    os.environ["TEST_PASSWORD"] = password
 
 
 @pytest.mark.bookstore
-@pytest.mark.skipif(skip_if_no_credentials, reason="⚠️  SKIPPED: Please configure TEST_USERNAME and TEST_PASSWORD environment variables or update helpers/test_data.py with your demoqa.com credentials. Visit https://demoqa.com/login and click 'New User' to create an account.")
+@pytest.mark.xdist_group("bookstore")
 class TestBookStoreLogin:
     """Test suite for Book Store Login"""
     

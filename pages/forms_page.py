@@ -36,30 +36,25 @@ class FormsPage(BasePage):
         """Navigate to Practice Form page"""
         self.goto("/automation-practice-form")
         self.wait_for_navigation()
-        # Wait for page to fully load - demoqa.com has dynamic content
-        self.page.wait_for_load_state("networkidle", timeout=30000)
-        self.page.wait_for_timeout(2000)  # Additional wait for React components
-        # Wait for form to be ready - wait for the form container
-        try:
-            self.page.wait_for_selector("#userForm", state="visible", timeout=15000)
-        except:
-            # If userForm not found, wait for any form element
-            self.page.wait_for_selector("form", state="visible", timeout=15000)
-        # Additional wait for form fields
-        self.first_name_input.wait_for(state="visible", timeout=15000)
+        # Wait for form container to appear (avoid networkidle flakiness)
+        if not self.page.locator("#userForm").is_visible():
+            try:
+                self.page.wait_for_selector("#userForm", state="visible", timeout=30000)
+            except:
+                self.page.wait_for_selector("form", state="visible", timeout=30000)
+        self.first_name_input.wait_for(state="visible", timeout=30000)
     
     def fill_form(self, data: Dict) -> None:
         """Fill the entire form with provided data"""
-        # Wait for form to be ready
-        self.page.wait_for_load_state("networkidle", timeout=30000)
-        self.page.wait_for_timeout(1000)
+        # Ensure the form is interactable
+        self.page.wait_for_load_state("domcontentloaded", timeout=30000)
+        self.first_name_input.wait_for(state="visible", timeout=30000)
         
         # Fill basic fields
-        self.first_name_input.wait_for(state="visible", timeout=10000)
         self.first_name_input.fill(data["firstName"])
-        self.last_name_input.wait_for(state="visible", timeout=10000)
+        self.last_name_input.wait_for(state="visible", timeout=30000)
         self.last_name_input.fill(data["lastName"])
-        self.email_input.wait_for(state="visible", timeout=10000)
+        self.email_input.wait_for(state="visible", timeout=30000)
         self.email_input.fill(data["email"])
         
         # Select gender
