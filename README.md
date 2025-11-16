@@ -380,7 +380,7 @@ MIT License
 
 ## 👤 Author
 
-Khodro45 Automation Team
+Fariba GHanbari
 
 ## 🔗 Resources
 
