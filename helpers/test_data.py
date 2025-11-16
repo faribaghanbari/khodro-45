@@ -54,8 +54,8 @@ def generate_edge_case_form_data() -> Dict:
 
 # Valid login credentials for demoqa.com Book Store
 VALID_CREDENTIALS: Dict[str, str] = {
-    "username": os.getenv("TEST_USERNAME", "your_username_here"),
-    "password": os.getenv("TEST_PASSWORD", "your_password_here"),
+    "username": os.getenv("TEST_USERNAME", "09217155383"),
+    "password": os.getenv("TEST_PASSWORD", "GH@nb@r!22"),
 }
 
 # Invalid login credentials for negative testing
