@@ -1,0 +1,41 @@
+# Python / Virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+
+# Environment files
+.env
+.env.*
+
+# Pytest / Playwright artifacts
+.pytest_cache/
+.playwright/
+playwright-report/
+test-results/
+reports/
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Node (if used by tooling)
+node_modules/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Build / Docker (optional)
+dist/
+build/
+.docker/
+
+

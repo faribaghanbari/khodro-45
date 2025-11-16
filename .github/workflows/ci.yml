@@ -1,0 +1,114 @@
+name: Playwright Tests CI
+
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Playwright Tests (Python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run Playwright tests
+        run: pytest --html=reports/html-report/index.html --self-contained-html --junitxml=reports/junit/results.xml -v --browser ${{ matrix.browser }}
+        env:
+          CI: true
+        continue-on-error: false
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: reports/html-report/
+          retention-days: 30
+
+      - name: Upload JUnit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-report-${{ matrix.browser }}
+          path: reports/junit/results.xml
+          retention-days: 30
+
+      - name: Upload test results (screenshots, videos)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+
+      # Note: Test results are available as artifacts (HTML reports and JUnit XML)
+      # If you want to publish test results to PR comments, uncomment below and ensure
+      # repository has "Read and write permissions" enabled in Settings → Actions → General
+      # - name: Publish test results
+      #   uses: EnricoMi/publish-unit-test-result-action@v2
+      #   if: always()
+      #   continue-on-error: true
+      #   with:
+      #     files: reports/junit/results.xml
+      #     check_name: Playwright Test Results (${{ matrix.browser }})
+      #     comment_mode: always
+      #     report_individual_runs: true
+
+  docker-test:
+    name: Docker Test Execution
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t khodro45-playwright:test .
+
+      - name: Run tests in Docker container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/reports:/usr/src/app/reports \
+            -v ${{ github.workspace }}/test-results:/usr/src/app/test-results \
+            -e CI=true \
+            khodro45-playwright:test
+
+      - name: Upload Docker test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-test-results
+          path: |
+            reports/
+            test-results/
+          retention-days: 30
+
