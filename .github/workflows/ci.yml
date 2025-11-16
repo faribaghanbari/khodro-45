@@ -69,7 +69,7 @@ jobs:
         with:
           files: reports/junit/results.xml
           check_name: Playwright Test Results (${{ matrix.browser }})
-          comment_mode: create new
+          comment_mode: always
           report_individual_runs: true
 
   docker-test:
