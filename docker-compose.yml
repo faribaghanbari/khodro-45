@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    image: khodro45-playwright-python:latest
+    container_name: khodro45-playwright-python-tests
+    volumes:
+      - ./reports:/usr/src/app/reports
+      - ./test-results:/usr/src/app/test-results
+    environment:
+      - CI=true
+    command: pytest --html=reports/html-report/index.html --self-contained-html --junitxml=reports/junit/results.xml
+
