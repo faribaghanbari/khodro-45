@@ -4,7 +4,7 @@ services:
   playwright-tests:
     build:
       context: .
-      dockerfile: Dockerfile.python
+      dockerfile: Dockerfile
     image: khodro45-playwright-python:latest
     container_name: khodro45-playwright-python-tests
     volumes:
