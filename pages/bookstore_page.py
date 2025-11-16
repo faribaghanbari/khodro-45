@@ -198,18 +198,79 @@ class BookStorePage(BasePage):
             self.user_name_label.wait_for(state="visible", timeout=10000)
         except Exception:
             pass
+        # Clear storage first to ensure clean logout
+        try:
+            self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        except Exception:
+            pass
+        # Click logout button with multiple fallbacks
         try:
             self.logout_button.scroll_into_view_if_needed()
             self.logout_button.click(timeout=10000)
+            # Wait for URL to change (Firefox needs explicit wait)
+            try:
+                self.page.wait_for_url("**/login**", timeout=10000)
+            except Exception:
+                pass
         except Exception:
             # Force click as fallback
             try:
                 self.logout_button.click(timeout=5000, force=True)
+                try:
+                    self.page.wait_for_url("**/login**", timeout=10000)
+                except Exception:
+                    pass
             except Exception:
                 # Try keyboard navigation as last resort
                 self.page.keyboard.press("Tab")
                 self.page.keyboard.press("Enter")
+                try:
+                    self.page.wait_for_url("**/login**", timeout=10000)
+                except Exception:
+                    pass
+        # Wait for navigation after logout
         self.wait_for_navigation()
+        # Clear storage again to ensure complete logout
+        try:
+            self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        except Exception:
+            pass
+        # Explicitly navigate to login page and wait for login form (with retries for Firefox)
+        for attempt in range(3):
+            try:
+                current_url = self.page.url
+                if "/login" in current_url:
+                    # Already on login page, just wait for form
+                    self.username_input.wait_for(state="visible", timeout=15000)
+                    self.password_input.wait_for(state="visible", timeout=5000)
+                    self.login_button.wait_for(state="visible", timeout=5000)
+                    # Verify we're actually on login page
+                    if "/login" in self.page.url:
+                        return
+                # Navigate to login
+                self.goto("/login")
+                self.username_input.wait_for(state="visible", timeout=15000)
+                self.password_input.wait_for(state="visible", timeout=5000)
+                self.login_button.wait_for(state="visible", timeout=5000)
+                # Double-check URL
+                if "/login" in self.page.url:
+                    return
+            except Exception:
+                if attempt < 2:
+                    # Try reloading as fallback
+                    try:
+                        self.page.reload(wait_until="domcontentloaded")
+                        self.page.wait_for_timeout(1000)
+                    except Exception:
+                        pass
+                else:
+                    # Last attempt: force clear everything and navigate
+                    try:
+                        self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); document.cookie.split(';').forEach(c => { document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/'); }); }")
+                        self.goto("/login")
+                        self.username_input.wait_for(state="visible", timeout=20000)
+                    except Exception:
+                        pass
     
     def get_error_message(self) -> Optional[str]:
         """Get error message if login fails"""

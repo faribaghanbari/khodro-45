@@ -28,12 +28,15 @@ This project implements automated E2E tests for three main areas of demoqa.com:
 - ✅ Page Object Model (POM) architecture
 - ✅ Reusable fixtures and helpers
 - ✅ Multi-browser support (Chromium, Firefox)
+- ✅ API-based user provisioning for Book Store tests
+- ✅ Robust authentication with retry mechanisms
+- ✅ Cross-browser stability (Firefox-specific optimizations)
 - ✅ Parallel test execution with pytest-xdist
 - ✅ HTML and JUnit reporting
 - ✅ Screenshot and video capture on failures
-- ✅ Dockerized test execution
+- ✅ Dockerized test execution (Playwright base image)
 - ✅ GitHub Actions CI/CD integration
-- ✅ Comprehensive error handling
+- ✅ Comprehensive error handling and fallbacks
 
 ## 📁 Project Structure
 
@@ -96,6 +99,10 @@ This project implements automated E2E tests for three main areas of demoqa.com:
 
 4. **Install Playwright browsers**
    ```bash
+   # On macOS/Linux (without system dependencies)
+   python -m playwright install chromium firefox
+   
+   # On Linux (with system dependencies - for Docker/CI)
    playwright install --with-deps chromium firefox
    ```
 
@@ -122,10 +129,9 @@ CI=false
 ```
 
 **Note**: 
-- The project includes placeholder credentials in `helpers/test_data.py`
-- **Book Store login tests will be automatically skipped** if credentials aren't configured
+- **Book Store tests automatically provision users via API** - no manual account setup required
 - Forms and Web Tables tests **do NOT require an account** and will run normally
-- For Book Store login tests, see [ACCOUNT_SETUP.md](./ACCOUNT_SETUP.md) for detailed instructions
+- The project uses DemoQA's Account API to create test users dynamically, bypassing UI captcha
 
 ## 🚀 Running Tests
 
@@ -188,17 +194,20 @@ start reports/html-report/index.html  # Windows
 
 ### Using Dockerfile
 
+**Note**: The Dockerfile uses the official Playwright Python base image (`mcr.microsoft.com/playwright/python:v1.49.1-jammy`) which includes all browsers and system dependencies pre-installed.
+
 1. **Build the Docker image**
    ```bash
-   docker build -t khodro45-playwright-python:latest .
+   docker build -t khodro45-playwright:test .
    ```
 
 2. **Run tests in Docker container**
    ```bash
    docker run --rm \
-     -v $(pwd)/reports:/usr/src/app/reports \
-     -v $(pwd)/test-results:/usr/src/app/test-results \
-     khodro45-playwright-python:latest
+     -v "$PWD/reports:/usr/src/app/reports" \
+     -v "$PWD/test-results:/usr/src/app/test-results" \
+     -e CI=true \
+     khodro45-playwright:test
    ```
 
 ### Using Docker Compose
@@ -310,10 +319,30 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 #### 4. Docker build fails
 
-**Solution**: Ensure Docker is running and has sufficient resources
+**Solution**: Ensure Docker Desktop is running and has sufficient resources
 ```bash
+# Check Docker status
 docker info
+
+# If Docker daemon is not running (macOS):
+# 1. Open Docker Desktop application
+# 2. Wait for whale icon in menu bar to stop animating
+# 3. Verify with: docker ps
 ```
+
+#### 5. Firefox tests fail intermittently
+
+**Solution**: The project includes Firefox-specific optimizations (force clicks, keyboard fallbacks). If issues persist:
+- Check network connectivity to demoqa.com
+- Review HTML reports for detailed error messages
+- Verify Playwright browser versions are up to date
+
+#### 6. "Cannot connect to Docker daemon" error
+
+**Solution**: 
+- **macOS**: Start Docker Desktop from Applications
+- **Linux**: Start Docker service: `sudo systemctl start docker`
+- Verify with: `docker ps`
 
 ## 📝 Git Workflow
 
@@ -363,3 +392,10 @@ Khodro45 Automation Team
 ---
 
 **Last Updated**: 2025-01-21
+
+## 🔧 Recent Improvements
+
+- **Enhanced Authentication**: API-based user provisioning with automatic retry mechanisms
+- **Cross-Browser Stability**: Firefox-specific optimizations with force clicks and keyboard fallbacks
+- **Docker Optimization**: Switched to official Playwright base image for faster, more reliable builds
+- **Robust Error Handling**: Improved timeout handling and fallback strategies for flaky network conditions
