@@ -119,7 +119,15 @@ class FormsPage(BasePage):
             self.page.wait_for_timeout(500)  # Wait for dropdown to open
             state_option = self.page.locator(f'div[id*="react-select"][id*="option"]:has-text("{data["state"]}")').first
             state_option.wait_for(state="visible", timeout=5000)
-            state_option.click(timeout=5000)
+            try:
+                state_option.click(timeout=5000)
+            except Exception:
+                # Firefox occasionally misses the click - try force click then keyboard confirm
+                try:
+                    state_option.click(timeout=3000, force=True)
+                except Exception:
+                    self.state_dropdown.click()
+                    self.page.keyboard.press("Enter")
             self.page.wait_for_timeout(500)  # Wait for selection
         
         if data.get("city"):

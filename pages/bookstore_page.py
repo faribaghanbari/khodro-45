@@ -29,10 +29,37 @@ class BookStorePage(BasePage):
     
     def navigate(self) -> None:
         """Navigate to Login page"""
+        # Ensure a clean state to avoid redirects from prior auth artifacts
+        try:
+            self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        except Exception:
+            pass
+        try:
+            self.page.context.clear_cookies()
+        except Exception:
+            pass
         self.goto("/login")
         self.wait_for_navigation()
+        # Close sticky ad/banner if present
+        try:
+            banner = self.page.locator("#close-fixedban")
+            if banner.is_visible():
+                banner.click()
+        except Exception:
+            pass
+        # If redirected to profile due to any residual state, force back to login
+        try:
+            self.page.wait_for_url("**/login", timeout=5000)
+        except Exception:
+            # Clear storage and try again
+            try:
+                self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+            except Exception:
+                pass
+            self.goto("/login")
         # Wait for login form to be ready
-        self.username_input.wait_for(state="visible", timeout=10000)
+        self.username_input.scroll_into_view_if_needed()
+        self.username_input.wait_for(state="visible", timeout=30000)
     
     def login(self, username: str, password: str) -> None:
         """Perform login with username and password"""
@@ -43,6 +70,13 @@ class BookStorePage(BasePage):
         self.page.wait_for_load_state("domcontentloaded")
         try:
             self.user_name_label.wait_for(state="visible", timeout=3000)
+            # If already logged in, prefer navigating to books listing where table exists
+            try:
+                self.goto("/books")
+                self.books_table.wait_for(state="visible", timeout=10000)
+            except Exception:
+                # Fall back to profile if books table not present yet
+                self.goto("/profile")
             return
         except Exception:
             pass
@@ -66,8 +100,8 @@ class BookStorePage(BasePage):
                 }""",
                 [username, token, expires, user_id],
             )
-            # Navigate to profile to reflect auth state
-            self.goto("/profile")
+            # Navigate to books to reflect auth state and ensure table presence
+            self.goto("/books")
             # Ensure storage is applied and UI reflects auth (stabilizes Firefox)
             try:
                 self.page.wait_for_function(
@@ -77,11 +111,25 @@ class BookStorePage(BasePage):
             except Exception:
                 pass
             try:
-                self.user_name_label.wait_for(state="visible", timeout=10000)
+                # Wait for books table to render for downstream assertions
+                try:
+                    self.books_table.wait_for(state="visible", timeout=10000)
+                except Exception:
+                    # If still not visible, reload once
+                    self.page.reload(wait_until="domcontentloaded")
+                    self.books_table.wait_for(state="visible", timeout=5000)
             except Exception:
                 # Give one more gentle nudge to load profile data
                 self.page.reload(wait_until="domcontentloaded")
-                self.user_name_label.wait_for(state="visible", timeout=5000)
+                try:
+                    self.books_table.wait_for(state="visible", timeout=5000)
+                except Exception:
+                    # As a last resort, go to profile to settle auth UI
+                    self.goto("/profile")
+                    try:
+                        self.user_name_label.wait_for(state="visible", timeout=5000)
+                    except Exception:
+                        pass
         except Exception:
             # Leave outcome to test assertions for negative cases
             return
@@ -91,24 +139,41 @@ class BookStorePage(BasePage):
         try:
             # Either username label is visible or URL ends with /profile
             self.user_name_label.wait_for(state="visible", timeout=15000)
+            # Prefer ending on /books to ensure table presence for downstream checks
+            try:
+                self.goto("/books")
+                self.books_table.wait_for(state="visible", timeout=10000)
+            except Exception:
+                pass
             return True
         except Exception:
             try:
+                # If profile becomes available, we are authenticated
                 self.page.wait_for_url("**/profile", timeout=5000)
-                # Ensure label becomes visible after navigation
-                self.user_name_label.wait_for(state="visible", timeout=5000)
+                # Try to move to books for table visibility
+                try:
+                    self.goto("/books")
+                    self.books_table.wait_for(state="visible", timeout=10000)
+                except Exception:
+                    # Settle for profile view if books not yet ready
+                    self.user_name_label.wait_for(state="visible", timeout=5000)
                 return True
             except Exception:
                 # As a last resort, check localStorage token and force profile load
                 try:
                     has_token = self.page.evaluate("() => !!localStorage.getItem('token')")
                     if has_token:
+                        # Navigate to books if possible to surface the table
                         try:
-                            self.goto("/profile")
-                            self.user_name_label.wait_for(state="visible", timeout=5000)
+                            self.goto("/books")
+                            self.books_table.wait_for(state="visible", timeout=7000)
                         except Exception:
-                            # Even if label isn't visible yet, presence of token indicates authenticated state
-                            pass
+                            # Fallback to profile
+                            try:
+                                self.goto("/profile")
+                                self.user_name_label.wait_for(state="visible", timeout=5000)
+                            except Exception:
+                                pass
                         return True
                 except Exception:
                     pass
@@ -127,7 +192,23 @@ class BookStorePage(BasePage):
     
     def logout(self) -> None:
         """Logout from the application"""
-        self.logout_button.click()
+        # Ensure we're on profile where logout button exists
+        try:
+            self.goto("/profile")
+            self.user_name_label.wait_for(state="visible", timeout=10000)
+        except Exception:
+            pass
+        try:
+            self.logout_button.scroll_into_view_if_needed()
+            self.logout_button.click(timeout=10000)
+        except Exception:
+            # Force click as fallback
+            try:
+                self.logout_button.click(timeout=5000, force=True)
+            except Exception:
+                # Try keyboard navigation as last resort
+                self.page.keyboard.press("Tab")
+                self.page.keyboard.press("Enter")
         self.wait_for_navigation()
     
     def get_error_message(self) -> Optional[str]:
